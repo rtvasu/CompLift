@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 // ─── PROMPT ──────────────────────────────────────────────────────────────────
 const EXTRACTION_PROMPT = `You are an expert at extracting executive compensation data from Canadian Annual Information Circulars (AICs) and management proxy circulars filed on SEDAR.
@@ -71,7 +71,7 @@ function classifyError(err, context) {
   const raw = context ? `${msg}\n\nContext: ${context}` : msg;
 
   if (msg.includes("401") || msg.includes("authentication") || msg.includes("api_key") || msg.includes("API key")) {
-    return { title: "Authentication Failed", detail: "The Anthropic API key is missing or invalid.", hint: "Make sure your API key is set correctly in the application.", raw };
+    return { title: "Authentication Failed", detail: "The Anthropic API key is missing or invalid.", hint: "Click the key icon in the header to enter your Anthropic API key.", raw };
   }
   if (msg.includes("429") || msg.includes("rate_limit") || msg.includes("rate limit")) {
     return { title: "Rate Limit Reached", detail: "Too many requests sent to the Anthropic API.", hint: "Wait a moment and try uploading again. Documents in a batch are queued sequentially to reduce this.", raw };
@@ -94,7 +94,7 @@ function classifyError(err, context) {
   return { title: "Extraction Failed", detail: msg, hint: "Check that the file is a valid, readable PDF containing a compensation table.", raw };
 }
 
-async function extractFile(file) {
+async function extractFile(file, apiKey) {
   let base64;
   try {
     base64 = await new Promise((res, rej) => {
@@ -112,7 +112,12 @@ async function extractFile(file) {
   try {
     response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 4000,
@@ -182,10 +187,35 @@ export default function CompLift() {
   const [dragOver, setDragOver] = useState(false);
   const [hoveredError, setHoveredError] = useState(null); // { jobId, rect }
   const [copied, setCopied] = useState(false);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("cl_anthropic_key") || "");
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [keyDraft, setKeyDraft] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const fileInputRef = useRef();
   const idRef = useRef(0);
 
+  useEffect(() => {
+    if (!apiKey) setShowKeyModal(true);
+  }, []);
+
+  const saveKey = () => {
+    const trimmed = keyDraft.trim();
+    if (!trimmed) return;
+    localStorage.setItem("cl_anthropic_key", trimmed);
+    setApiKey(trimmed);
+    setKeyDraft("");
+    setShowKey(false);
+    setShowKeyModal(false);
+  };
+
+  const openKeyModal = () => {
+    setKeyDraft("");
+    setShowKey(false);
+    setShowKeyModal(true);
+  };
+
   const addFiles = useCallback(async (files) => {
+    if (!apiKey) { openKeyModal(); return; }
     const arr = Array.from(files).filter(f => f.type === "application/pdf");
     const newJobs = arr.map(f => ({
       id: ++idRef.current, file: f,
@@ -197,7 +227,7 @@ export default function CompLift() {
     for (const job of newJobs) {
       setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: STATUS.EXTRACTING } : j));
       try {
-        const data = await extractFile(job.file);
+        const data = await extractFile(job.file, apiKey);
         setJobs(prev => {
           const updated = prev.map(j => j.id === job.id ? {
             ...j, status: STATUS.DONE, data,
@@ -308,12 +338,19 @@ export default function CompLift() {
         </div>
         <div style={{ width: 1, height: 18, background: "#1e1e2a" }} />
         <div style={{ fontSize: 10, color: "#7a7a8e", letterSpacing: "0.12em", textTransform: "uppercase" }}>Executive Compensation Intelligence</div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           {jobs.filter(j => j.status === STATUS.DONE).length > 1 && (
             <button onClick={exportAll} style={{ padding: "6px 12px", borderRadius: 5, border: "1px solid #1e1e2a", background: "transparent", color: "#6b6b7e", fontSize: 10, fontFamily: "inherit", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
               Export All ↓
             </button>
           )}
+          <button
+            onClick={openKeyModal}
+            title={apiKey ? "API key set — click to change" : "Set Anthropic API key"}
+            style={{ padding: "6px 10px", borderRadius: 5, border: `1px solid ${apiKey ? "#1e2e1e" : "#4a3200"}`, background: apiKey ? "transparent" : "rgba(245,158,11,0.07)", color: apiKey ? "#22c55e" : "#f59e0b", fontSize: 13, cursor: "pointer", lineHeight: 1 }}
+          >
+            {apiKey ? "🔑" : "⚠ Set API Key"}
+          </button>
           <button onClick={() => fileInputRef.current.click()} style={{ padding: "6px 14px", borderRadius: 5, border: "none", background: "#16a34a", color: "#fff", fontSize: 10, fontFamily: "inherit", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
             + Upload AICs
           </button>
@@ -388,7 +425,12 @@ export default function CompLift() {
               <p style={{ color: "#7a7a8e", fontSize: 12, maxWidth: 360, lineHeight: 1.8 }}>
                 Upload one or more Annual Information Circulars from SEDAR. CompLift extracts every year of executive compensation data, flags uncertain values for your review, and exports clean structured CSV.
               </p>
-              <button onClick={() => fileInputRef.current.click()} style={{ marginTop: 24, padding: "11px 22px", borderRadius: 6, border: "none", background: "#16a34a", color: "#fff", fontSize: 11, fontFamily: "inherit", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
+              {!apiKey && (
+                <button onClick={openKeyModal} style={{ marginTop: 24, padding: "11px 22px", borderRadius: 6, border: "1px solid #4a3200", background: "rgba(245,158,11,0.07)", color: "#f59e0b", fontSize: 11, fontFamily: "inherit", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
+                  ⚠ Set Anthropic API Key First
+                </button>
+              )}
+              <button onClick={() => fileInputRef.current.click()} style={{ marginTop: apiKey ? 24 : 10, padding: "11px 22px", borderRadius: 6, border: "none", background: "#16a34a", color: "#fff", fontSize: 11, fontFamily: "inherit", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
                 + Upload AICs
               </button>
             </div>
@@ -753,5 +795,51 @@ export default function CompLift() {
         );
       })()}
     </div>
+
+    {/* ── API KEY MODAL ── */}
+    {showKeyModal && (
+      <div
+        onClick={(e) => { if (e.target === e.currentTarget && apiKey) setShowKeyModal(false); }}
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+      >
+        <div style={{ background: "#0d0d18", border: "1px solid #1e1e2a", borderRadius: 10, padding: "28px 28px 24px", width: "100%", maxWidth: 420, animation: "fadeUp .2s ease" }}>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 6 }}>
+            Anthropic API Key
+          </div>
+          <p style={{ fontSize: 11, color: "#7a7a8e", lineHeight: 1.8, marginBottom: 20 }}>
+            Your key is stored only in this browser's <code style={{ color: "#9b9b8e" }}>localStorage</code> and sent directly to Anthropic. It never touches any server.
+            {" "}Get a key at <span style={{ color: "#22c55e" }}>console.anthropic.com</span>.
+          </p>
+          <div style={{ position: "relative", marginBottom: 12 }}>
+            <input
+              type={showKey ? "text" : "password"}
+              value={keyDraft}
+              onChange={e => setKeyDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") saveKey(); if (e.key === "Escape" && apiKey) setShowKeyModal(false); }}
+              placeholder="sk-ant-..."
+              autoFocus
+              style={{ width: "100%", padding: "10px 40px 10px 12px", borderRadius: 6, border: "1px solid #2a2a3a", background: "#080810", color: "#d8d5cf", fontSize: 12, fontFamily: "inherit", outline: "none", letterSpacing: "0.02em" }}
+            />
+            <button
+              onClick={() => setShowKey(v => !v)}
+              style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#7a7a8e", cursor: "pointer", fontSize: 13, padding: 0, lineHeight: 1 }}
+              tabIndex={-1}
+            >
+              {showKey ? "🙈" : "👁"}
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            {apiKey && (
+              <button onClick={() => setShowKeyModal(false)} style={{ padding: "8px 16px", borderRadius: 5, border: "1px solid #1e1e2a", background: "transparent", color: "#7a7a8e", fontSize: 10, fontFamily: "inherit", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
+                Cancel
+              </button>
+            )}
+            <button onClick={saveKey} disabled={!keyDraft.trim()} style={{ padding: "8px 20px", borderRadius: 5, border: "none", background: keyDraft.trim() ? "#16a34a" : "#111120", color: keyDraft.trim() ? "#fff" : "#5a5a6e", fontSize: 10, fontFamily: "inherit", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: keyDraft.trim() ? "pointer" : "not-allowed", transition: "all .15s" }}>
+              Save Key
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   );
 }
