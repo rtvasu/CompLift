@@ -316,6 +316,7 @@ export default function CompLift() {
   const activeFlagData = activeFlag && curData ? curData.executives[activeFlag.execIdx]?.[activeFlag.field] : null;
 
   return (
+    <>
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", backgroundColor: "#07070e", color: "#d8d5cf", fontFamily: "'DM Mono','Fira Code','Courier New',monospace" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@700;800&display=swap');
@@ -841,5 +842,6 @@ export default function CompLift() {
         </div>
       </div>
     )}
+    </>
   );
 }
