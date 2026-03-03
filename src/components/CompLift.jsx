@@ -193,6 +193,7 @@ export default function CompLift() {
   const [showKey, setShowKey] = useState(false);
   const fileInputRef = useRef();
   const idRef = useRef(0);
+  const hoverErrorTimeout = useRef(null);
 
   useEffect(() => {
     if (!apiKey) setShowKeyModal(true);
@@ -383,10 +384,13 @@ export default function CompLift() {
               <div key={job.id} className="jrow"
                 onClick={() => { if (job.status === STATUS.DONE) { setSelectedJob(job.id); setActiveFlag(null); setActiveExec(null); } }}
                 onMouseEnter={job.status === STATUS.ERROR ? (e) => {
+                  clearTimeout(hoverErrorTimeout.current);
                   const rect = e.currentTarget.getBoundingClientRect();
                   setHoveredError({ jobId: job.id, rect });
                 } : undefined}
-                onMouseLeave={job.status === STATUS.ERROR ? () => setHoveredError(null) : undefined}
+                onMouseLeave={job.status === STATUS.ERROR ? () => {
+                  hoverErrorTimeout.current = setTimeout(() => setHoveredError(null), 100);
+                } : undefined}
                 style={{ padding: "10px 14px", cursor: job.status === STATUS.DONE ? "pointer" : "default", backgroundColor: isSel ? "#0b150b" : "transparent", borderLeft: `2px solid ${isSel ? "#22c55e" : job.status === STATUS.ERROR ? "#4a1010" : "transparent"}`, borderBottom: "1px solid #0e0e16", transition: "all .15s", position: "relative" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
                   <div style={{ fontSize: 11, color: job.status === STATUS.ERROR ? "#f87171" : isSel ? "#d8d5cf" : "#7b7b8e", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
@@ -724,8 +728,8 @@ export default function CompLift() {
 
         return (
           <div
-            onMouseEnter={() => {}}
-            onMouseLeave={() => setHoveredError(null)}
+            onMouseEnter={() => clearTimeout(hoverErrorTimeout.current)}
+            onMouseLeave={() => { hoverErrorTimeout.current = setTimeout(() => setHoveredError(null), 100); }}
             style={{
               position: "fixed",
               top: top,
