@@ -1,0 +1,5 @@
+html,body,#root{height:100%}
+body{margin:0;font-family:DM Mono,monospace}
+
+/* small helper to ensure full-bleed dark background */
+body{background:#07070e}
