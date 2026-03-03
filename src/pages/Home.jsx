@@ -9,7 +9,7 @@ export default function Home() {
         <p style={{ color: '#9aa0a0', marginBottom: 18 }}>Executive Compensation Intelligence — drop AIC PDFs to extract structured compensation tables and export CSV.</p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <Link to="/viewer" style={{ padding: '10px 18px', background: '#16a34a', color: '#fff', borderRadius: 6, textDecoration: 'none', fontWeight: 700 }}>Open Viewer</Link>
-          <a href="https://github.com/" target="_blank" rel="noreferrer" style={{ padding: '10px 18px', background: '#0c0c18', color: '#9aa0a0', borderRadius: 6, textDecoration: 'none' }}>Source</a>
+          <a href="https://github.com/rtvasu/CompLift" target="_blank" rel="noreferrer" style={{ padding: '10px 18px', background: '#0c0c18', color: '#9aa0a0', borderRadius: 6, textDecoration: 'none' }}>Source</a>
         </div>
       </div>
     </div>
