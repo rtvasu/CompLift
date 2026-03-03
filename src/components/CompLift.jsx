@@ -428,7 +428,7 @@ export default function CompLift() {
               <div style={{ fontSize: 52, marginBottom: 18, opacity: .15 }}>⬆</div>
               <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, letterSpacing: "-0.04em", marginBottom: 10 }}>Drop documents to begin</h1>
               <p style={{ color: "#7a7a8e", fontSize: 12, maxWidth: 360, lineHeight: 1.8 }}>
-                Upload financial PDFs — proxy circulars, regulatory filings, financial statements. Folio extracts structured data, flags uncertain values for your review, and exports clean CSV. Executive compensation tables are the first supported parser.
+                Upload financial PDFs — proxy circulars, regulatory filings, financial statements. Lean extracts structured data, flags uncertain values for your review, and exports clean CSV. Executive compensation tables are the first supported parser.
               </p>
               {!apiKey && (
                 <button onClick={openKeyModal} style={{ marginTop: 24, padding: "11px 22px", borderRadius: 6, border: "1px solid #4a3200", background: "rgba(245,158,11,0.07)", color: "#f59e0b", fontSize: 11, fontFamily: "inherit", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", cursor: "pointer" }}>
